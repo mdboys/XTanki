@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using UnityEngine;
+
+// Token: 0x02000042 RID: 66
+[NullableContext(1)]
+[Nullable(0)]
+[ExecuteInEditMode]
+public class ME_ParticleCollisionDecal : MonoBehaviour
+{
+	// Token: 0x060000FA RID: 250 RVA: 0x0005F9DC File Offset: 0x0005DBDC
+	private void OnEnable()
+	{
+		this.collisionEvents.Clear();
+		this.collidedGameObjects.Clear();
+		this.initiatorPS = base.GetComponent<ParticleSystem>();
+		this.particles = new ParticleSystem.Particle[this.DecalParticles.main.maxParticles];
+		if (this.InstantiateWhenZeroSpeed)
+		{
+			base.InvokeRepeating("CollisionDetect", 0f, 0.1f);
+		}
+	}
+
+	// Token: 0x060000FB RID: 251 RVA: 0x00005DA6 File Offset: 0x00003FA6
+	private void OnDisable()
+	{
+		if (this.InstantiateWhenZeroSpeed)
+		{
+			base.CancelInvoke("CollisionDetect");
+		}
+	}
+
+	// Token: 0x060000FC RID: 252 RVA: 0x00005DBB File Offset: 0x00003FBB
+	private void OnParticleCollision(GameObject other)
+	{
+		if (this.InstantiateWhenZeroSpeed)
+		{
+			if (!this.collidedGameObjects.Contains(other))
+			{
+				this.collidedGameObjects.Add(other);
+				return;
+			}
+		}
+		else
+		{
+			this.OnParticleCollisionManual(other, -1);
+		}
+	}
+
+	// Token: 0x060000FD RID: 253 RVA: 0x0005FA48 File Offset: 0x0005DC48
+	private void CollisionDetect()
+	{
+		int num = 0;
+		if (this.InstantiateWhenZeroSpeed)
+		{
+			num = this.DecalParticles.GetParticles(this.particles);
+		}
+		foreach (GameObject gameObject in this.collidedGameObjects)
+		{
+			this.OnParticleCollisionManual(gameObject, num);
+		}
+	}
+
+	// Token: 0x060000FE RID: 254 RVA: 0x0005FAB8 File Offset: 0x0005DCB8
+	private void OnParticleCollisionManual(GameObject other, int aliveParticles = -1)
+	{
+		this.collisionEvents.Clear();
+		int num = this.initiatorPS.GetCollisionEvents(other, this.collisionEvents);
+		for (int i = 0; i < num; i++)
+		{
+			if (Vector3.Angle(this.collisionEvents[i].normal, Vector3.up) <= this.MaxGroundAngleDeviation)
+			{
+				if (this.InstantiateWhenZeroSpeed)
+				{
+					if (this.collisionEvents[i].velocity.sqrMagnitude > 0.1f)
+					{
+						goto IL_016A;
+					}
+					bool flag = false;
+					for (int j = 0; j < aliveParticles; j++)
+					{
+						if (Vector3.Distance(this.collisionEvents[i].intersection, this.particles[j].position) < this.MinDistanceBetweenDecals)
+						{
+							flag = true;
+						}
+					}
+					if (flag)
+					{
+						goto IL_016A;
+					}
+				}
+				ParticleSystem.EmitParams emitParams = default(ParticleSystem.EmitParams);
+				emitParams.position = this.collisionEvents[i].intersection + this.collisionEvents[i].normal * this.MinDistanceBetweenSurface;
+				Vector3 eulerAngles = Quaternion.LookRotation(-this.collisionEvents[i].normal).eulerAngles;
+				eulerAngles.z = (float)global::UnityEngine.Random.Range(0, 360);
+				emitParams.rotation3D = eulerAngles;
+				this.DecalParticles.Emit(emitParams, 1);
+			}
+			IL_016A:;
+		}
+	}
+
+	// Token: 0x04000098 RID: 152
+	public ParticleSystem DecalParticles;
+
+	// Token: 0x04000099 RID: 153
+	public bool IsBilboard;
+
+	// Token: 0x0400009A RID: 154
+	public bool InstantiateWhenZeroSpeed;
+
+	// Token: 0x0400009B RID: 155
+	public float MaxGroundAngleDeviation = 45f;
+
+	// Token: 0x0400009C RID: 156
+	public float MinDistanceBetweenDecals = 0.1f;
+
+	// Token: 0x0400009D RID: 157
+	public float MinDistanceBetweenSurface = 0.03f;
+
+	// Token: 0x0400009E RID: 158
+	private readonly List<GameObject> collidedGameObjects = new List<GameObject>();
+
+	// Token: 0x0400009F RID: 159
+	private readonly List<ParticleCollisionEvent> collisionEvents = new List<ParticleCollisionEvent>();
+
+	// Token: 0x040000A0 RID: 160
+	private ParticleSystem initiatorPS;
+
+	// Token: 0x040000A1 RID: 161
+	private ParticleSystem.Particle[] particles;
+}
